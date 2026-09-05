@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Python Практикум</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: Arial, sans-serif; background: #f4f5f7; color: #222;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  h1 { margin: 0 0 8px; }
+  .hint { color: #666; margin-bottom: 20px; }
+  .card {
+    background: white; border-radius: 14px; padding: 20px;
+    box-shadow: 0 3px 15px rgba(0,0,0,.08); margin-bottom: 18px;
+  }
+  label { font-weight: 700; display: block; margin-bottom: 7px; }
+  input[type=text] {
+    width: 100%; padding: 11px 12px; border: 1px solid #ccc;
+    border-radius: 8px; font-size: 16px; margin-bottom: 18px;
+  }
+  textarea {
+    width: 100%; min-height: 360px; resize: vertical;
+    background: #171717; color: #eee; border: 0; border-radius: 10px;
+    padding: 16px; font: 15px/1.55 Consolas, Monaco, monospace;
+    outline: none; tab-size: 4;
+  }
+  .input-box { min-height: 110px; background: #fafafa; color: #222; border: 1px solid #ccc; font: 15px/1.5 Consolas, Monaco, monospace; }
+  .input-hint { color: #777; font-size: 13px; margin-top: 7px; }
+  .buttons { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    border: 0; border-radius: 8px; padding: 11px 18px;
+    font-size: 15px; cursor: pointer;
+  }
+  #run { background: #222; color: white; }
+  #clear { background: #e9e9e9; }
+  #status { margin-top: 12px; font-size: 14px; color: #777; }
+  pre {
+    background: #111; color: #eee; border-radius: 10px;
+    padding: 15px; min-height: 100px; white-space: pre-wrap;
+    font: 15px/1.5 Consolas, Monaco, monospace;
+  }
+  .warning {
+    background: #fff6d9; border: 1px solid #eed58b;
+    border-radius: 10px; padding: 12px 14px; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐍 Python Практикум</h1>
+  <div class="hint">Пишите программу с клавиатуры и запускайте её прямо в браузере.</div>
+
+  <div class="card">
+    <label for="name">Имя и фамилия</label>
+    <input id="name" type="text" placeholder="Введите имя">
+
+    <label for="code">Ваш код</label>
+    <textarea id="code" spellcheck="false"
+      placeholder="# Напишите программу здесь..."></textarea>
+
+    <div class="buttons">
+      <button id="run">▶ Запустить</button>
+      <button id="clear">Очистить</button>
+    </div>
+    <div id="status">Вставка текста в редактор отключена.</div>
+  </div>
+
+  <div class="card">
+    <label for="stdin">Входные данные</label>
+    <textarea id="stdin" spellcheck="false" class="input-box" placeholder="Введите данные для программы, каждое значение — с новой строки"></textarea>
+    <div class="input-hint">Если программа использует несколько input(), каждое значение пишите с новой строки.</div>
+  </div>
+
+  <div class="card">
+    <label>Результат</label>
+    <pre id="output">Здесь появится результат программы.</pre>
+  </div>
+
+  <div class="warning">
+    <b>Для учителя:</b> эта страница блокирует обычные способы копирования и вставки
+    в редакторе. Это не абсолютная защита от обхода ограничений браузера
+    (например, через DevTools или внешние средства).
+  </div>
+</div>
+
+<!-- Pyodide: Python в браузере -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
+
+<script>
+let pyodide = null;
+const editor = document.getElementById("code");
+const output = document.getElementById("output");
+const status = document.getElementById("status");
+
+async function loadPython() {
+  status.textContent = "Загружаем Python...";
+  pyodide = await loadPyodide();
+  status.textContent = "Python готов. Пишите программу с клавиатуры.";
+}
+
+loadPython().catch(err => {
+  status.textContent = "Не удалось загрузить Python: " + err;
+});
+
+/* Запрет обычного копирования/вставки */
+editor.addEventListener("paste", e => {
+  e.preventDefault();
+  status.textContent = "⛔ Вставка запрещена. Код нужно набрать с клавиатуры.";
+});
+
+editor.addEventListener("copy", e => e.preventDefault());
+editor.addEventListener("cut", e => e.preventDefault());
+editor.addEventListener("drop", e => e.preventDefault());
+
+editor.addEventListener("contextmenu", e => e.preventDefault());
+
+editor.addEventListener("keydown", e => {
+  // Блокируем Ctrl/Cmd + V, Shift+Insert
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+    e.preventDefault();
+    status.textContent = "⛔ Вставка запрещена.";
+  }
+  if (e.shiftKey && e.key === "Insert") {
+    e.preventDefault();
+    status.textContent = "⛔ Вставка запрещена.";
+  }
+  // Блокируем Ctrl/Cmd + C и X в редакторе
+  if ((e.ctrlKey || e.metaKey) &&
+      ["c", "x"].includes(e.key.toLowerCase())) {
+    e.preventDefault();
+    status.textContent = "⛔ Копирование/вырезание запрещено.";
+  }
+});
+
+document.getElementById("clear").onclick = () => {
+  editor.value = "";
+  output.textContent = "Здесь появится результат программы.";
+  status.textContent = "Редактор очищен.";
+  editor.focus();
+};
+
+document.getElementById("run").onclick = async () => {
+  if (!pyodide) {
+    status.textContent = "Python ещё загружается...";
+    return;
+  }
+
+  const code = editor.value;
+  output.textContent = "";
+
+  // Берём значения для input() из отдельного поля
+  const inputLines = document.getElementById("stdin").value.split(/\r?\n/);
+  let inputIndex = 0;
+  pyodide.setStdin({
+    stdin: () => inputIndex < inputLines.length ? inputLines[inputIndex++] : ""
+  });
+
+  try {
+    let result = await pyodide.runPythonAsync(`
+import sys
+from io import StringIO
+_old_stdout = sys.stdout
+_old_stderr = sys.stderr
+sys.stdout = StringIO()
+sys.stderr = StringIO()
+
+try:
+    exec(${JSON.stringify(code)}, {})
+finally:
+    _out = sys.stdout.getvalue()
+    _err = sys.stderr.getvalue()
+    sys.stdout = _old_stdout
+    sys.stderr = _old_stderr
+
+(_out, _err)
+`);
+    const [out, err] = result.toJs();
+    output.textContent = (out || "") + (err || "");
+    if (!output.textContent) output.textContent = "Программа выполнена без вывода.";
+    status.textContent = "Программа выполнена.";
+  } catch (err) {
+    output.textContent = String(err);
+    status.textContent = "Ошибка выполнения.";
+  }
+};
+</script>
+</body>
+</html>
